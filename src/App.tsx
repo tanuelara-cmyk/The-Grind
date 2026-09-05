@@ -7,7 +7,7 @@ export default function App() {
       <LiveSimulator />
       <footer className="bg-white border-t border-[#E2EBE2] py-4 text-center text-xs text-[#839988]">
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2">
-          <span>The Grind &copy; 2025 – Habit Challenge Club • Small steps. Big changes.</span>
+          <span>The Grind &copy; {new Date().getFullYear()} – Habit Challenge Club • Small steps. Big changes.</span>
           <span className="text-[#4F6654] font-medium">
             Daily Habits • Streaks • Grind Coach
           </span>

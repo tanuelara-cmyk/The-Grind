@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Flame, CheckCircle2, Trophy, Zap, Clock, Bell, ChevronRight, 
   ArrowLeft, Plus, Trash2, Send, MessageSquare, Bot, User as UserIcon,
   Settings as SettingsIcon, BarChart3, Calendar, ShieldCheck, Sparkles,
   Pencil, Check, X
 } from 'lucide-react';
+import { 
+  getLocalDateKey, 
+  formatDisplayDate, 
+  getLast7Days, 
+  getMondayToSundayWeek 
+} from '../utils/dateUtils';
 
 interface HabitItem {
   id: number;
@@ -83,16 +89,121 @@ export const LiveSimulator: React.FC = () => {
     setTimeout(() => setStreakToast(null), 3000);
   };
 
-  // Habit Stack State (Initial 7 Habits)
-  const [habits, setHabits] = useState<HabitItem[]>([
-    { id: 1, name: 'Drink 2L Water', category: 'Health', icon: '💧', target: '2000 ml', reminderTime: '08:00 AM', completed: true },
-    { id: 2, name: '30-min Workout', category: 'Fitness', icon: '🏋️', target: '30 mins', reminderTime: '06:30 AM', completed: true },
-    { id: 3, name: 'Read 10 Pages', category: 'Mindset', icon: '📖', target: '10 pages', reminderTime: '09:00 PM', completed: true },
-    { id: 4, name: 'Meditate 10 Mins', category: 'Mindfulness', icon: '🧘', target: '10 mins', reminderTime: '07:00 AM', completed: true },
-    { id: 5, name: 'Walk 8,000 Steps', category: 'Fitness', icon: '🚶', target: '8000 steps', reminderTime: '07:30 PM', completed: true },
-    { id: 6, name: 'Sleep Before 11 PM', category: 'Recovery', icon: '🌙', target: '1 time', reminderTime: '10:30 PM', completed: false },
-    { id: 7, name: 'Study DSA (1 Hour)', category: 'Career', icon: '💻', target: '60 mins', reminderTime: '04:00 PM', completed: false },
-  ]);
+  // Dynamic Date State (uses JavaScript Date API and user local timezone)
+  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+  const [currentDateKey, setCurrentDateKey] = useState<string>(() => getLocalDateKey());
+
+  // Auto-detect day rollover without requiring manual refresh or redeployment
+  useEffect(() => {
+    const checkDateTransition = () => {
+      const now = new Date();
+      const newKey = getLocalDateKey(now);
+      if (newKey !== currentDateKey) {
+        setCurrentDate(now);
+        setCurrentDateKey(newKey);
+      }
+    };
+
+    // Periodic check every 5 seconds
+    const intervalId = setInterval(checkDateTransition, 5000);
+
+    // Immediate check when tab becomes active or window gains focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkDateTransition();
+      }
+    };
+
+    window.addEventListener('focus', checkDateTransition);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', checkDateTransition);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentDateKey]);
+
+  // Default initial habits
+  const DEFAULT_HABITS: Omit<HabitItem, 'completed'>[] = [
+    { id: 1, name: 'Drink 2L Water', category: 'Health', icon: '💧', target: '2000 ml', reminderTime: '08:00 AM' },
+    { id: 2, name: '30-min Workout', category: 'Fitness', icon: '🏋️', target: '30 mins', reminderTime: '06:30 AM' },
+    { id: 3, name: 'Read 10 Pages', category: 'Mindset', icon: '📖', target: '10 pages', reminderTime: '09:00 PM' },
+    { id: 4, name: 'Meditate 10 Mins', category: 'Mindfulness', icon: '🧘', target: '10 mins', reminderTime: '07:00 AM' },
+    { id: 5, name: 'Walk 8,000 Steps', category: 'Fitness', icon: '🚶', target: '8000 steps', reminderTime: '07:30 PM' },
+    { id: 6, name: 'Sleep Before 11 PM', category: 'Recovery', icon: '🌙', target: '1 time', reminderTime: '10:30 PM' },
+    { id: 7, name: 'Study DSA (1 Hour)', category: 'Career', icon: '💻', target: '60 mins', reminderTime: '04:00 PM' },
+  ];
+
+  // Persistent Habit Stack Templates
+  const [rawHabits, setRawHabits] = useState<Array<Omit<HabitItem, 'completed'>>>(() => {
+    try {
+      const saved = localStorage.getItem('the_grind_habits');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_HABITS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('the_grind_habits', JSON.stringify(rawHabits));
+    } catch {
+      // ignore
+    }
+  }, [rawHabits]);
+
+  // Date-associated habit completions: Record<YYYY-MM-DD, habitId[]>
+  const [completionsByDate, setCompletionsByDate] = useState<Record<string, number[]>>(() => {
+    try {
+      const saved = localStorage.getItem('the_grind_completions');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === 'object' && parsed !== null) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Default initialization: seed today's demo completions (habits 1..5)
+    // and recent past days so 7-day consistency and weekly charts are informative
+    const initialToday = getLocalDateKey();
+    const seed: Record<string, number[]> = {
+      [initialToday]: [1, 2, 3, 4, 5],
+    };
+    for (let i = 1; i <= 6; i++) {
+      const pastD = new Date();
+      pastD.setDate(pastD.getDate() - i);
+      const pastKey = getLocalDateKey(pastD);
+      seed[pastKey] = i % 2 === 0 ? [1, 2, 3, 4, 5, 7] : [1, 2, 3, 4, 5];
+    }
+    return seed;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('the_grind_completions', JSON.stringify(completionsByDate));
+    } catch {
+      // ignore
+    }
+  }, [completionsByDate]);
+
+  // Active habits list dynamically mapped to currentDate's completion state
+  const habits: HabitItem[] = useMemo(() => {
+    const completedTodayIds = completionsByDate[currentDateKey] || [];
+    return rawHabits.map(h => ({
+      ...h,
+      completed: completedTodayIds.includes(h.id),
+    }));
+  }, [rawHabits, completionsByDate, currentDateKey]);
 
   const [selectedHabitId, setSelectedHabitId] = useState<number>(1);
 
@@ -113,41 +224,90 @@ export const LiveSimulator: React.FC = () => {
   const totalCount = habits.length;
   const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  // Toggle habit
+  // Toggle habit with dynamic date association
   const toggleHabit = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setHabits(prev => prev.map(h => {
-      if (h.id === id) {
-        const nextState = !h.completed;
-        return { ...h, completed: nextState };
-      }
-      return h;
-    }));
+    setCompletionsByDate(prev => {
+      const currentCompleted = prev[currentDateKey] || [];
+      const isCompleted = currentCompleted.includes(id);
+      const updated = isCompleted
+        ? currentCompleted.filter(hId => hId !== id)
+        : [...currentCompleted, id];
+
+      setUser(u => ({
+        ...u,
+        totalCompleted: isCompleted 
+          ? Math.max(0, u.totalCompleted - 1) 
+          : u.totalCompleted + 1,
+      }));
+
+      return {
+        ...prev,
+        [currentDateKey]: updated,
+      };
+    });
   };
 
   // Add custom habit
   const handleAddCustomHabit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customHabitName.trim()) return;
-    const newHabit: HabitItem = {
+    const newHabit: Omit<HabitItem, 'completed'> = {
       id: Date.now(),
       name: customHabitName.trim(),
       category: 'Custom',
       icon: '⚡',
       target: `${customHabitTarget} ${customHabitUnit}`,
       reminderTime: '08:00 PM',
-      completed: false
     };
-    setHabits(prev => [...prev, newHabit]);
+    setRawHabits(prev => [...prev, newHabit]);
     setCustomHabitName('');
     alert('Habit added successfully to your stack!');
   };
 
   // Delete habit
   const handleDeleteHabit = (id: number) => {
-    setHabits(prev => prev.filter(h => h.id !== id));
+    setRawHabits(prev => prev.filter(h => h.id !== id));
     setCurrentScreen('dashboard');
   };
+
+  // Dynamic 7-day window ending on currentDate for habit detail history
+  const last7Days = useMemo(() => getLast7Days(currentDate), [currentDate]);
+
+  // Dynamic Monday to Sunday calendar week for analytics
+  const weekDays = useMemo(() => getMondayToSundayWeek(currentDate), [currentDate]);
+
+  const weeklyStats = useMemo(() => {
+    return weekDays.map(day => {
+      if (day.isToday) {
+        return {
+          ...day,
+          pct: completionPercentage,
+        };
+      }
+      if (day.isFuture) {
+        return {
+          ...day,
+          pct: 0,
+        };
+      }
+      const dayCompletions = completionsByDate[day.key] || [];
+      const pct = rawHabits.length > 0 
+        ? Math.round((dayCompletions.length / rawHabits.length) * 100) 
+        : 0;
+      return {
+        ...day,
+        pct: Math.min(100, pct),
+      };
+    });
+  }, [weekDays, completionsByDate, rawHabits.length, completionPercentage]);
+
+  const weeklyAvg = useMemo(() => {
+    const elapsedDays = weeklyStats.filter(d => !d.isFuture);
+    if (elapsedDays.length === 0) return 0;
+    const sum = elapsedDays.reduce((acc, curr) => acc + curr.pct, 0);
+    return Math.round(sum / elapsedDays.length);
+  }, [weeklyStats]);
 
   // Send Chat message
   const handleSendMessage = (msgText?: string) => {
@@ -516,7 +676,7 @@ export const LiveSimulator: React.FC = () => {
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1A2E1F]">Good day, {user.name}! 👋</h1>
                 <p className="text-sm text-[#4F6654]">
-                  Today is <span className="font-semibold text-[#1A2E1F]">Monday, March 3, 2025</span> &bull; Small steps make big changes.
+                  Today is <span className="font-semibold text-[#1A2E1F]">{formatDisplayDate(currentDate)}</span> &bull; Small steps make big changes.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -727,14 +887,24 @@ export const LiveSimulator: React.FC = () => {
               <div className="mb-8">
                 <h4 className="font-bold text-sm mb-3">7-Day Consistency Record</h4>
                 <div className="grid grid-cols-7 gap-2 text-center">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => (
-                    <div key={idx}>
-                      <div className="text-xs text-[#839988] mb-1">{day}</div>
-                      <div className="h-10 rounded-lg bg-[#E8F5E9] text-[#2E7D32] font-bold flex items-center justify-center text-sm">
-                        {idx === 6 ? (selectedHabit.completed ? '✓' : '—') : '✓'}
+                  {last7Days.map((dayInfo) => {
+                    const isDone = (completionsByDate[dayInfo.key] || []).includes(selectedHabit.id);
+                    return (
+                      <div key={dayInfo.key}>
+                        <div className={`text-xs mb-1 font-semibold ${dayInfo.isToday ? 'text-[#2E7D32]' : 'text-[#839988]'}`}>
+                          {dayInfo.dayName}
+                        </div>
+                        <div className={`h-10 rounded-lg font-bold flex items-center justify-center text-sm transition-all ${
+                          isDone 
+                            ? 'bg-[#E8F5E9] text-[#2E7D32]' 
+                            : 'bg-[#F7FAF7] text-[#839988] border border-[#E2EBE2]'
+                        }`}>
+                          {isDone ? '✓' : '—'}
+                        </div>
+                        <div className="text-[10px] text-[#839988] mt-1">{dayInfo.monthDay}</div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -773,27 +943,23 @@ export const LiveSimulator: React.FC = () => {
                   <p className="text-xs text-[#839988]">Monday to Sunday completion metrics</p>
                 </div>
                 <span className="bg-[#E8F5E9] text-[#2E7D32] font-bold px-3 py-1 rounded-full text-xs">
-                  Weekly Avg: 78%
+                  Weekly Avg: {weeklyAvg}%
                 </span>
               </div>
 
               <div className="grid grid-cols-7 gap-4 items-end h-56 pb-4 border-b border-[#E2EBE2]">
-                {[
-                  { day: 'Mon', pct: 60 },
-                  { day: 'Tue', pct: 80 },
-                  { day: 'Wed', pct: 100 },
-                  { day: 'Thu', pct: 60 },
-                  { day: 'Fri', pct: 80 },
-                  { day: 'Sat', pct: 100 },
-                  { day: 'Sun', pct: 50 }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end">
+                {weeklyStats.map((item) => (
+                  <div key={item.key} className="flex flex-col items-center gap-2 h-full justify-end">
                     <span className="text-xs font-bold text-[#2E7D32]">{item.pct}%</span>
                     <div 
-                      className={`w-full max-w-10 rounded-t-lg transition-all ${item.pct >= 80 ? 'bg-[#2E7D32]' : 'bg-[#A5D6A7]'}`}
-                      style={{ height: `${item.pct * 1.6}px` }}
+                      className={`w-full max-w-10 rounded-t-lg transition-all ${
+                        item.pct >= 80 ? 'bg-[#2E7D32]' : item.pct > 0 ? 'bg-[#A5D6A7]' : 'bg-[#E2EBE2]'
+                      }`}
+                      style={{ height: `${Math.max(item.pct * 1.6, 4)}px` }}
                     ></div>
-                    <span className="text-xs font-semibold text-[#4F6654]">{item.day}</span>
+                    <span className={`text-xs font-semibold ${item.isToday ? 'text-[#2E7D32] font-bold' : 'text-[#4F6654]'}`}>
+                      {item.dayName}
+                    </span>
                   </div>
                 ))}
               </div>
