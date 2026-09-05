@@ -1,0 +1,6 @@
+{
+  "name": "The Grind – Habit Challenge Club",
+  "description": "A college-level Java Full Stack Mini Project for habit tracking and consistency building featuring Servlets, JSP, JDBC, MySQL, OOP, and Grind Coach.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
