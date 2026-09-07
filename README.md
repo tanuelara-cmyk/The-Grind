@@ -8,6 +8,14 @@
 
 ---
 
+Login Page
+[login.png]
+
+Dashboard
+[dashboard.png]
+
+---
+
 ## Overview
 
 **The Grind** is a productivity-focused web application that combines habit tracking, streak monitoring, focused work sessions, progress tracking, and a guided productivity chatbot into a single interface.
@@ -34,12 +42,6 @@ The core idea is:
 * Monitor habit completion and consistency
 * Track progress toward daily productivity goals
 * View productivity information in a centralized dashboard
-
-### Focus Timer
-
-* Dedicated timer for focused work sessions
-* Helps users structure their study or work periods
-* Designed to reduce distractions and encourage focused sessions
 
 ### Productivity Chatbot
 
@@ -213,7 +215,7 @@ The project was created to gain hands-on experience in building and deploying a 
 
 **Tanu**
 
-BE Computer Engineering Student
+Computer Engineering Student
 
 ---
 
