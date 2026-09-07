@@ -9,9 +9,12 @@
 ---
 
 Login Page
+
 <img width="625" height="692" alt="Screenshot 2026-09-07 212822" src="https://github.com/user-attachments/assets/fbc85e9e-766b-44e9-9ebc-e34e9c6030fc" />
 
+
 Dashboard
+
 <img width="1915" height="918" alt="Screenshot 2026-09-07 212910" src="https://github.com/user-attachments/assets/4b21fe2d-7424-4d1f-a3e1-d8bbbd55f656" />
 
 ---
