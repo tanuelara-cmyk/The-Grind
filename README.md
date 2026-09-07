@@ -1,4 +1,3 @@
-<img width="1915" height="918" alt="Screenshot 2026-09-07 212910" src="https://github.com/user-attachments/assets/ff4fe961-95e8-47fc-b034-bb8bc89039fe" />
 # The Grind
 
 > A modern habit tracking and productivity web application built to help users develop consistency, manage daily habits, and stay focused.
@@ -10,10 +9,10 @@
 ---
 
 Login Page
-[<img width="625" height="692" alt="Screenshot 2026-09-07 212822" src="https://github.com/user-attachments/assets/fbc85e9e-766b-44e9-9ebc-e34e9c6030fc" />]
+<img width="625" height="692" alt="Screenshot 2026-09-07 212822" src="https://github.com/user-attachments/assets/fbc85e9e-766b-44e9-9ebc-e34e9c6030fc" />
 
 Dashboard
-[<img width="1915" height="918" alt="Screenshot 2026-09-07 212910" src="https://github.com/user-attachments/assets/4b21fe2d-7424-4d1f-a3e1-d8bbbd55f656" />]
+<img width="1915" height="918" alt="Screenshot 2026-09-07 212910" src="https://github.com/user-attachments/assets/4b21fe2d-7424-4d1f-a3e1-d8bbbd55f656" />
 
 ---
 
